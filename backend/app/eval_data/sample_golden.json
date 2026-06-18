@@ -1,0 +1,33 @@
+{
+  "description": "RAG 评估黄金集（玩具样例，设计文档 18.3）。每条含 query / 期望命中文档 / 参考答案。",
+  "items": [
+    {
+      "id": "g1",
+      "query": "公司的报销流程是什么？",
+      "expected_doc_ids": ["doc-finance-001"],
+      "expected_chunk_ids": ["chunk-finance-001-3"],
+      "reference_answer": "员工先在系统提交报销单并上传发票，部门经理审批后由财务在 5 个工作日内打款。"
+    },
+    {
+      "id": "g2",
+      "query": "年假有多少天？",
+      "expected_doc_ids": ["doc-hr-002"],
+      "expected_chunk_ids": ["chunk-hr-002-1"],
+      "reference_answer": "入职满一年享有 5 天带薪年假，每多工作一年增加 1 天，上限 15 天。"
+    },
+    {
+      "id": "g3",
+      "query": "如何申请远程办公？",
+      "expected_doc_ids": ["doc-hr-005"],
+      "expected_chunk_ids": ["chunk-hr-005-2"],
+      "reference_answer": "提前一天在 OA 提交远程办公申请，直属上级审批通过即可。"
+    },
+    {
+      "id": "g4",
+      "query": "产品的默认 API 限流是多少？",
+      "expected_doc_ids": ["doc-tech-010"],
+      "expected_chunk_ids": ["chunk-tech-010-0"],
+      "reference_answer": "默认每个用户每分钟 30 次请求，超过返回 429。"
+    }
+  ]
+}

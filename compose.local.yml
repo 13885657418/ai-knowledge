@@ -1,0 +1,63 @@
+# =============================================================================
+# 本地一键启动编排（设计文档 12：local-full-run）
+# 同时启动：postgres(pgvector) + redis + backend(FastAPI)
+# 用法：cp .env.example .env && docker compose -f compose.local.yml up --build
+# =============================================================================
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    volumes:
+      - app-db-data:/var/lib/postgresql/data/pgdata
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changethis}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-app}
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_SERVER=db
+      - REDIS_HOST=redis
+      - ENVIRONMENT=local
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: bash -c "bash scripts/prestart.sh && fastapi run app/main.py --host 0.0.0.0 --port 8000 --reload"
+    volumes:
+      - app-uploads:/app/uploads
+      - ./backend/app:/app/backend/app
+    ports:
+      - "8000:8000"
+
+volumes:
+  app-db-data:
+  app-redis-data:
+  app-uploads:

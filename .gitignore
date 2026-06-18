@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+bun.lock
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Test & cache
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+backend/htmlcov/
+
+# Runtime artifacts
+backend/uploads/
+uploads/
+*.log
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+playwright/.auth/
+.tanstack/
+
+# Build artifacts
+dist/
+dist-ssr/
+
+# Environment
+.env
+*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
