@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from app.core.config import settings
 
@@ -184,10 +184,33 @@ class LLMService:
         convo = [m for m in messages if m.get("role") != "system"]
         return system, convo
 
-    async def _openai_chat(self, messages: list[dict], model: str) -> str:
+    async def _openai_chat(
+        self,
+        messages: list[dict],
+        model: str,
+        tools: list[dict] | None = None,
+    ) -> dict:
+        """OpenAI 兼容 chat。返回 {content, tool_calls}，便于 Agent 复用。"""
         client = self._get_openai()
-        resp = await client.chat.completions.create(model=model, messages=messages)
-        return resp.choices[0].message.content or ""
+        kwargs: dict = {"model": model, "messages": messages}
+        if tools:
+            kwargs["tools"] = tools
+            kwargs["tool_choice"] = "auto"
+        resp = await client.chat.completions.create(**kwargs)
+        msg = resp.choices[0].message
+        tool_calls = []
+        for tc in (getattr(msg, "tool_calls", None) or []):
+            tool_calls.append(
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    },
+                }
+            )
+        return {"content": msg.content or "", "tool_calls": tool_calls}
 
     async def _claude_chat(self, messages: list[dict], model: str) -> str:
         client = self._get_anthropic()
@@ -203,11 +226,19 @@ class LLMService:
 
     # ---------------------------------------------------------------- chat
     async def chat(
-        self, messages: list[dict], model: str | None = None, stream: bool = False
+        self,
+        messages: list[dict],
+        model: str | None = None,
+        stream: bool = False,
+        tools: list[dict] | None = None,
+        **_: Any,
     ) -> dict:
         """非流式生成。stream=True 时聚合流式输出为完整文本后返回。
 
-        返回 {content, usage}。主 Provider 异常时回退 fallback 模型。
+        tools 非空时走 OpenAI function-calling 协议，返回里包含 tool_calls
+        供 AgentService（设计文档 8.3 ReAct 循环）消费。
+
+        返回 {content, tool_calls, usage}。主 Provider 异常时回退 fallback 模型。
         """
         model = model or self.model
         prompt_text = self._flatten(messages)
@@ -215,11 +246,19 @@ class LLMService:
         if stream:
             chunks = [tok async for tok in self.stream_chat(messages, model)]
             content = "".join(chunks)
-            return {"content": content, "usage": self._usage(model, prompt_text, content)}
+            return {
+                "content": content,
+                "tool_calls": [],
+                "usage": self._usage(model, prompt_text, content),
+            }
 
+        content = ""
+        tool_calls: list[dict] = []
         try:
             if self.provider == "openai":
-                content = await self._openai_chat(messages, model)
+                result = await self._openai_chat(messages, model, tools=tools)
+                content = result["content"]
+                tool_calls = result["tool_calls"]
             elif self.provider == "claude":
                 content = await self._claude_chat(messages, model)
             else:
@@ -229,7 +268,11 @@ class LLMService:
             if self.fallback_model and self.provider != "mock":
                 try:
                     if self.provider == "openai":
-                        content = await self._openai_chat(messages, self.fallback_model)
+                        result = await self._openai_chat(
+                            messages, self.fallback_model, tools=tools
+                        )
+                        content = result["content"]
+                        tool_calls = result["tool_calls"]
                     else:
                         content = await self._claude_chat(messages, self.fallback_model)
                     model = self.fallback_model
@@ -238,7 +281,11 @@ class LLMService:
             else:
                 content = self._mock_answer(messages)
 
-        return {"content": content, "usage": self._usage(model, prompt_text, content)}
+        return {
+            "content": content,
+            "tool_calls": tool_calls,
+            "usage": self._usage(model, prompt_text, content),
+        }
 
     async def stream_chat(
         self, messages: list[dict], model: str | None = None

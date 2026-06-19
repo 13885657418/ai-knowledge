@@ -181,11 +181,12 @@ function ChatPage() {
     setMessages((prev) => [...prev, userMsg])
     setIsAsking(true)
 
+    const selectedPrompt = prompts?.data.find((p) => p.id === promptVersion)
     const body = {
       query,
       top_k: topK,
       use_agent: useAgent,
-      prompt_version: promptVersion || null,
+      prompt_version: selectedPrompt?.version ?? null,
     }
 
     if (useStream && !useAgent) {
@@ -350,7 +351,7 @@ function ChatPage() {
                 <SelectContent>
                   <SelectItem value="__default__">默认（active）</SelectItem>
                   {prompts?.data.map((p) => (
-                    <SelectItem key={p.id} value={p.version}>
+                    <SelectItem key={p.id} value={p.id}>
                       {p.name} · {p.version}
                     </SelectItem>
                   ))}

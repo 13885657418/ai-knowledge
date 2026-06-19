@@ -167,9 +167,13 @@ async def ask(
                 },
                 "trace_id": None,
             }
-        except ImportError:
-            # agent_service 尚未就绪 -> 回退普通 RAG
-            pass
+        except Exception as exc:  # noqa: BLE001
+            # agent_service / LLMService 任何异常 -> 回退普通 RAG，避免 500
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Agent run failed, fallback to plain RAG: %s", exc
+            )
 
     service = ChatService(session)
     return await service.ask(
